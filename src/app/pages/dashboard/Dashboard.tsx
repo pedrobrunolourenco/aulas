@@ -2,20 +2,29 @@
 // import { Link } from "react-router-dom"
 // import { UsuarioLogadoContext } from "../../shared/contexts"
 
-import { useCallback, useState  } from "react"
+import { useCallback, useEffect, useState  } from "react"
+import { ITarefa, TarefasService } from "../../shared/services/api/tarefas/TarefasService";
+import { ApiException } from "../../shared/services/api/ApiException";
 
-interface IListItem{
-    id: number;
-    title: string;
-    isCompleted : boolean;
-}
 
 export const Dashboard = () => {
     // const counterRef = useRef({counter: 0})
 
     // const usuarioLogadoContext = useContext(UsuarioLogadoContext)
 
-    const [lista, setLista] = useState<IListItem[]>([]);
+    const [lista, setLista] = useState<ITarefa[]>([]);
+
+    useEffect( () => {
+      TarefasService.getAll()
+          .then((result) => {
+            if(result instanceof ApiException){
+              alert(result.message);
+
+            }else{
+              setLista(result);
+            }
+          })
+    },[])
 
     const handleInputKeyDown: React.KeyboardEventHandler<HTMLInputElement> = useCallback( (e) => {
       if(e.key === "Enter"){
@@ -25,21 +34,54 @@ export const Dashboard = () => {
 
         e.currentTarget.value = '';
 
-        setLista((oldLista) => {
+        // veririfica se o titulo digitado já existe
+        if(lista.some((ListItem) => ListItem.title === value)) return;
+  
+        TarefasService.create({ title: value, isCompleted: false })
+        .then((result) => {
+          if(result instanceof ApiException){
+            alert(result.message);
 
-            if(oldLista.some((ListItem) => ListItem.title === value)) return oldLista
-
-            return [...oldLista, {
-                id: oldLista.length,
-                title: value,
-                isCompleted: false,
-
-            }]
-
+          }else{
+            setLista((oldLista) => [...oldLista, result] );
+          }
         });
       }
+    },[lista]);
 
-    },[]);
+    const handleToogleComplete = useCallback((id: string) =>{
+      const tarefaToUpdate = lista.find((tarefa) => tarefa.id === id);
+      if(!tarefaToUpdate) return;
+      TarefasService.updateById(id, {
+        ...tarefaToUpdate,
+        isCompleted: !tarefaToUpdate.isCompleted
+      })
+      .then((result) => {
+
+        if(result instanceof ApiException){
+          alert(result.message);
+
+        }else{
+          setLista( oldLista => {
+            return oldLista.map(oldListaItem => {
+              if(oldListaItem.id === id) return result;
+              return oldListaItem;
+            });
+          });
+        }
+      }); 
+
+      setLista((oldLista) => {
+        return oldLista.map(oldListItem => {
+          const newIsCompleted = oldListItem.id === id ? !oldListItem.isCompleted : oldListItem.isCompleted;
+          return {
+             ...oldListItem,
+             isCompleted : newIsCompleted,
+          };
+        });
+      })
+
+    },[lista]);
 
     return(
         <div>
@@ -56,29 +98,16 @@ export const Dashboard = () => {
 
             <ul>
                 {lista.map((ListItem) =>
-                    { return <li key={ListItem.title}>
-                    <input 
-                       onChange={()=> {
-                         setLista((oldLista) => {
-                           return oldLista.map(oldListItem => {
-                             const newSelectted = oldListItem.title === ListItem.title
-                             ? !oldListItem.isCompleted
-                             : oldListItem.isCompleted;
-                             return {
-
-                                ...oldListItem,
-                                isSelected : newSelectted
-                             };
-                           });
-                         })
-                       }}
-                       type="checkbox" checked={ListItem.isCompleted}/>
-                    {ListItem.title}
-                    </li>
+                    { return <li key={ListItem.id}>
+                      <input 
+                        type="checkbox"
+                        checked={ListItem.isCompleted}
+                        onChange={()=> {handleToogleComplete(ListItem.id)}} 
+                      />
+                      {ListItem.title}
+                    </li>;
                 })}
             </ul>
-
-
         </div>
     )
 }
