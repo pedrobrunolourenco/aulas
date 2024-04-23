@@ -49,7 +49,7 @@ export const Dashboard = () => {
       }
     },[lista]);
 
-    const handleToogleComplete = useCallback((id: string) =>{
+    const handleToogleComplete = useCallback((id: number) =>{
       const tarefaToUpdate = lista.find((tarefa) => tarefa.id === id);
       if(!tarefaToUpdate) return;
       TarefasService.updateById(id, {
@@ -69,20 +69,26 @@ export const Dashboard = () => {
             });
           });
         }
-      }); 
-
-      setLista((oldLista) => {
-        return oldLista.map(oldListItem => {
-          const newIsCompleted = oldListItem.id === id ? !oldListItem.isCompleted : oldListItem.isCompleted;
-          return {
-             ...oldListItem,
-             isCompleted : newIsCompleted,
-          };
-        });
       })
-
     },[lista]);
 
+
+
+      const handleDelete = useCallback((id: number) => {
+        TarefasService.deleteById(id)
+        .then((result) => {
+  
+          if(result instanceof ApiException){
+            alert(result.message);
+            } else {
+            setLista( oldLista => {
+              return oldLista.filter(oldListaItem => oldListaItem.id !== id);
+            });
+          }                   
+
+        });
+      },[]);
+          
     return(
         <div>
            {/* <p>DASHBOARD</p>
@@ -105,6 +111,8 @@ export const Dashboard = () => {
                         onChange={()=> {handleToogleComplete(ListItem.id)}} 
                       />
                       {ListItem.title}
+
+                      <button onClick={()=> {handleDelete(ListItem.id)}}>Apagar</button>
                     </li>;
                 })}
             </ul>
